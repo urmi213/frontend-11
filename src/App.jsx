@@ -1,4 +1,4 @@
-// App.jsx - Simplified Version (Remove missing components)
+// App.jsx - Complete with all routes
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router';
 import { Toaster } from 'react-hot-toast';
 import { AuthProvider } from './context/AuthContext';
@@ -15,7 +15,11 @@ import DashboardLayout from './pages/dashboard/DashboardLayout';
 import Profile from './pages/dashboard/Profile';
 import MyRequests from './pages/dashboard/donor/MyRequests';
 import CreateRequest from './pages/dashboard/donor/CreateRequest';
+import Funding from './pages/dashboard/admin/Funding'; // ✅ Add this import
 import AdminDashboard from './components/dashboard/AdminDashboard';
+import AdminAllRequests from './pages/dashboard/admin/AllRequests';
+import AdminReports from './pages/dashboard/admin/AdminReports'; // ✅ Add this import
+import AdminUsers from './pages/dashboard/admin/AdminUsers'; // ✅ Add this import
 import NotFound from './pages/errors/NotFound';
 
 function App() {
@@ -46,12 +50,31 @@ function App() {
                 <Route path="profile" element={<Profile />} />
                 <Route path="my-requests" element={<MyRequests />} />
                 <Route path="create-request" element={<CreateRequest />} />
+                <Route path="funding" element={<Funding />} /> {/* ✅ Add this */}
               </Route>
               
-              {/* ✅ Admin Dashboard Only - Simple Version */}
+              {/* ✅ Admin Routes */}
               <Route path="/admin/dashboard" element={
                 <ProtectedRoute adminOnly>
                   <AdminDashboard />
+                </ProtectedRoute>
+              } />
+              
+              <Route path="/admin/all-requests" element={
+                <ProtectedRoute adminOnly>
+                  <AdminAllRequests />
+                </ProtectedRoute>
+              } />
+              
+              <Route path="/admin/reports" element={
+                <ProtectedRoute adminOnly>
+                  <AdminReports />
+                </ProtectedRoute>
+              } />
+              
+              <Route path="/admin/users" element={
+                <ProtectedRoute adminOnly>
+                  <AdminUsers />
                 </ProtectedRoute>
               } />
               
