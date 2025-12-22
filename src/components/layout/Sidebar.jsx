@@ -43,7 +43,7 @@ const Sidebar = () => {
   const menuItems = [
     { path: '/dashboard', label: 'Dashboard', icon: <Home className="h-5 w-5" /> },
     { path: '/dashboard/profile', label: 'Profile', icon: <User className="h-5 w-5" /> },
-    { path: '/dashboard/my-requests', label: 'My Requests', icon: <Droplets className="h-5 w-5" /> },
+    { path: '/dashboard/my-donation-requests', label: 'My Requests', icon: <Droplets className="h-5 w-5" /> },
     { path: '/dashboard/create-request', label: 'Create Request', icon: <PlusCircle className="h-5 w-5" /> },
     { path: '/dashboard/funding', label: 'Funding', icon: <DollarSign className="h-5 w-5" /> },
   ];

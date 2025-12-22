@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router';
 import { useAuth } from '../../../context/AuthContext';
 import toast from 'react-hot-toast';
-import { Droplets, Clock, CheckCircle, XCircle, Edit, Trash2, Eye } from 'lucide-react';
+import { Droplets, Clock, CheckCircle, XCircle, Edit, Trash2, Eye, ChevronLeft, ChevronRight } from 'lucide-react';
 
 const MyRequests = () => {
   const { user } = useAuth();
@@ -10,6 +10,8 @@ const MyRequests = () => {
   const [requests, setRequests] = useState([]);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState('all');
+  const [currentPage, setCurrentPage] = useState(1);
+  const [itemsPerPage] = useState(10); // 10 items per page - REQUIREMENTS: Pagination
 
   useEffect(() => {
     fetchMyRequests();
@@ -42,6 +44,7 @@ const MyRequests = () => {
         }
         
         setRequests(filteredRequests);
+        setCurrentPage(1); // Reset to first page when filtering
       }
     } catch (error) {
       console.error('Error fetching requests:', error);
@@ -49,6 +52,110 @@ const MyRequests = () => {
     } finally {
       setLoading(false);
     }
+  };
+
+  // Calculate pagination
+  const indexOfLastItem = currentPage * itemsPerPage;
+  const indexOfFirstItem = indexOfLastItem - itemsPerPage;
+  const currentItems = requests.slice(indexOfFirstItem, indexOfLastItem);
+  const totalPages = Math.ceil(requests.length / itemsPerPage);
+
+  // Pagination Component
+  const Pagination = () => {
+    if (totalPages <= 1) return null;
+    
+    const pageNumbers = [];
+    const maxVisiblePages = 5;
+    
+    let startPage = Math.max(1, currentPage - Math.floor(maxVisiblePages / 2));
+    let endPage = Math.min(totalPages, startPage + maxVisiblePages - 1);
+    
+    if (endPage - startPage + 1 < maxVisiblePages) {
+      startPage = Math.max(1, endPage - maxVisiblePages + 1);
+    }
+    
+    for (let i = startPage; i <= endPage; i++) {
+      pageNumbers.push(i);
+    }
+    
+    return (
+      <div className="flex flex-col sm:flex-row justify-between items-center mt-8">
+        <div className="text-sm text-gray-600 mb-4 sm:mb-0">
+          Showing {indexOfFirstItem + 1} to {Math.min(indexOfLastItem, requests.length)} of {requests.length} requests
+        </div>
+        
+        <div className="flex items-center space-x-2">
+          <button
+            onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
+            disabled={currentPage === 1}
+            className="p-2 rounded-lg border border-gray-300 disabled:opacity-50 hover:bg-gray-50"
+            title="Previous"
+          >
+            <ChevronLeft className="h-4 w-4" />
+          </button>
+          
+          <div className="hidden sm:flex space-x-1">
+            {startPage > 1 && (
+              <>
+                <button
+                  onClick={() => setCurrentPage(1)}
+                  className="px-3 py-1 rounded-lg border border-gray-300 hover:bg-gray-50"
+                >
+                  1
+                </button>
+                {startPage > 2 && <span className="px-2">...</span>}
+              </>
+            )}
+            
+            {pageNumbers.map(number => (
+              <button
+                key={number}
+                onClick={() => setCurrentPage(number)}
+                className={`px-3 py-1 rounded-lg ${
+                  currentPage === number 
+                    ? 'bg-blue-600 text-white border-blue-600' 
+                    : 'border border-gray-300 hover:bg-gray-50'
+                }`}
+              >
+                {number}
+              </button>
+            ))}
+            
+            {endPage < totalPages && (
+              <>
+                {endPage < totalPages - 1 && <span className="px-2">...</span>}
+                <button
+                  onClick={() => setCurrentPage(totalPages)}
+                  className="px-3 py-1 rounded-lg border border-gray-300 hover:bg-gray-50"
+                >
+                  {totalPages}
+                </button>
+              </>
+            )}
+          </div>
+          
+          {/* Mobile pagination */}
+          <div className="sm:hidden">
+            <span className="px-3 py-1 bg-blue-100 text-blue-800 rounded-lg">
+              Page {currentPage} of {totalPages}
+            </span>
+          </div>
+          
+          <button
+            onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
+            disabled={currentPage === totalPages}
+            className="p-2 rounded-lg border border-gray-300 disabled:opacity-50 hover:bg-gray-50"
+            title="Next"
+          >
+            <ChevronRight className="h-4 w-4" />
+          </button>
+        </div>
+        
+        <div className="hidden sm:block text-sm text-gray-600">
+          {itemsPerPage} per page
+        </div>
+      </div>
+    );
   };
 
   const handleDeleteRequest = async (requestId) => {
@@ -154,44 +261,44 @@ const MyRequests = () => {
           <p className="mt-2 text-gray-600">Manage your blood donation requests</p>
         </div>
 
-        {/* Filter Buttons */}
+        {/* Filter Buttons - REQUIREMENTS: Filter by status */}
         <div className="mb-6 bg-white rounded-lg shadow p-4">
           <div className="flex flex-wrap gap-2">
             <button
               onClick={() => setFilter('all')}
-              className={`px-4 py-2 rounded-lg ${filter === 'all' ? 'bg-blue-500 text-white' : 'bg-gray-100 text-gray-700'}`}
+              className={`px-4 py-2 rounded-lg transition ${filter === 'all' ? 'bg-blue-500 text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'}`}
             >
               All ({requests.length})
             </button>
             <button
               onClick={() => setFilter('pending')}
-              className={`px-4 py-2 rounded-lg ${filter === 'pending' ? 'bg-yellow-500 text-white' : 'bg-gray-100 text-gray-700'}`}
+              className={`px-4 py-2 rounded-lg transition ${filter === 'pending' ? 'bg-yellow-500 text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'}`}
             >
-              Pending
+              Pending ({requests.filter(r => r.status === 'pending').length})
             </button>
             <button
               onClick={() => setFilter('inprogress')}
-              className={`px-4 py-2 rounded-lg ${filter === 'inprogress' ? 'bg-blue-500 text-white' : 'bg-gray-100 text-gray-700'}`}
+              className={`px-4 py-2 rounded-lg transition ${filter === 'inprogress' ? 'bg-blue-500 text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'}`}
             >
-              In Progress
+              In Progress ({requests.filter(r => r.status === 'inprogress').length})
             </button>
             <button
               onClick={() => setFilter('done')}
-              className={`px-4 py-2 rounded-lg ${filter === 'done' ? 'bg-green-500 text-white' : 'bg-gray-100 text-gray-700'}`}
+              className={`px-4 py-2 rounded-lg transition ${filter === 'done' ? 'bg-green-500 text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'}`}
             >
-              Completed
+              Completed ({requests.filter(r => r.status === 'done').length})
             </button>
             <button
               onClick={() => setFilter('cancelled')}
-              className={`px-4 py-2 rounded-lg ${filter === 'cancelled' ? 'bg-red-500 text-white' : 'bg-gray-100 text-gray-700'}`}
+              className={`px-4 py-2 rounded-lg transition ${filter === 'cancelled' ? 'bg-red-500 text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'}`}
             >
-              Cancelled
+              Cancelled ({requests.filter(r => r.status === 'cancelled').length})
             </button>
           </div>
         </div>
 
         {/* Requests Table */}
-        {requests.length === 0 ? (
+        {currentItems.length === 0 ? (
           <div className="bg-white rounded-xl shadow p-8 text-center">
             <Droplets className="h-16 w-16 text-gray-400 mx-auto" />
             <h3 className="mt-4 text-xl font-semibold text-gray-900">No requests found</h3>
@@ -203,131 +310,147 @@ const MyRequests = () => {
             </p>
             <button
               onClick={() => navigate('/dashboard/create-request')}
-              className="mt-6 bg-red-600 text-white px-6 py-3 rounded-lg hover:bg-red-700"
+              className="mt-6 bg-red-600 text-white px-6 py-3 rounded-lg hover:bg-red-700 transition"
             >
               Create Your First Request
             </button>
           </div>
         ) : (
-          <div className="bg-white rounded-xl shadow overflow-hidden">
-            <div className="overflow-x-auto">
-              <table className="min-w-full divide-y divide-gray-200">
-                <thead className="bg-gray-50">
-                  <tr>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Recipient
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Blood Group
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Location
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Date & Time
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Status
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Actions
-                    </th>
-                  </tr>
-                </thead>
-                <tbody className="bg-white divide-y divide-gray-200">
-                  {requests.map((request) => (
-                    <tr key={request._id} className="hover:bg-gray-50">
-                      <td className="px-6 py-4">
-                        <div>
-                          <div className="font-medium text-gray-900">
-                            {request.recipientName}
+          <>
+            <div className="bg-white rounded-xl shadow overflow-hidden">
+              <div className="overflow-x-auto">
+                <table className="min-w-full divide-y divide-gray-200">
+                  <thead className="bg-gray-50">
+                    <tr>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Recipient
+                      </th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Blood Group
+                      </th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Location
+                      </th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Date & Time
+                      </th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Status
+                      </th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Actions
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody className="bg-white divide-y divide-gray-200">
+                    {currentItems.map((request) => (
+                      <tr key={request._id} className="hover:bg-gray-50">
+                        <td className="px-6 py-4">
+                          <div>
+                            <div className="font-medium text-gray-900">
+                              {request.recipientName}
+                            </div>
+                            <div className="text-sm text-gray-500">
+                              {request.hospitalName}
+                            </div>
+                          </div>
+                        </td>
+                        
+                        <td className="px-6 py-4">
+                          <span className="font-bold text-red-600 text-lg">
+                            {request.bloodGroup}
+                          </span>
+                        </td>
+                        
+                        <td className="px-6 py-4">
+                          <div className="text-sm text-gray-900">
+                            {request.recipientDistrict}
                           </div>
                           <div className="text-sm text-gray-500">
-                            {request.hospitalName}
+                            {request.recipientUpazila}
                           </div>
-                        </div>
-                      </td>
-                      
-                      <td className="px-6 py-4">
-                        <span className="font-bold text-red-600">
-                          {request.bloodGroup}
-                        </span>
-                      </td>
-                      
-                      <td className="px-6 py-4">
-                        <div className="text-sm text-gray-900">
-                          {request.recipientDistrict}
-                        </div>
-                        <div className="text-sm text-gray-500">
-                          {request.recipientUpazila}
-                        </div>
-                      </td>
-                      
-                      <td className="px-6 py-4">
-                        <div className="text-sm text-gray-900">
-                          {formatDate(request.donationDate)}
-                        </div>
-                        <div className="text-sm text-gray-500">
-                          {request.donationTime}
-                        </div>
-                      </td>
-                      
-                      <td className="px-6 py-4">
-                        <div className="flex items-center">
-                          {getStatusIcon(request.status)}
-                          <span className={`ml-2 px-3 py-1 text-xs font-semibold rounded-full ${getStatusColor(request.status)}`}>
-                            {request.status}
-                          </span>
-                        </div>
-                      </td>
-                      
-                      <td className="px-6 py-4">
-                        <div className="flex space-x-2">
-                          <button
-                            onClick={() => navigate(`/dashboard/request/${request._id}`)}
-                            className="p-2 text-blue-600 hover:bg-blue-50 rounded"
-                            title="View Details"
-                          >
-                            <Eye className="h-4 w-4" />
-                          </button>
-                          
-                          {request.status === 'inprogress' && (
-                            <>
-                              <button
-                                onClick={() => handleUpdateStatus(request._id, 'done')}
-                                className="p-2 text-green-600 hover:bg-green-50 rounded"
-                                title="Mark as Done"
-                              >
-                                <CheckCircle className="h-4 w-4" />
-                              </button>
-                              <button
-                                onClick={() => handleUpdateStatus(request._id, 'cancelled')}
-                                className="p-2 text-red-600 hover:bg-red-50 rounded"
-                                title="Cancel Request"
-                              >
-                                <XCircle className="h-4 w-4" />
-                              </button>
-                            </>
-                          )}
-                          
-                          <button
-                            onClick={() => handleDeleteRequest(request._id)}
-                            className="p-2 text-red-600 hover:bg-red-50 rounded"
-                            title="Delete Request"
-                          >
-                            <Trash2 className="h-4 w-4" />
-                          </button>
-                        </div>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+                        </td>
+                        
+                        <td className="px-6 py-4">
+                          <div className="text-sm text-gray-900">
+                            {formatDate(request.donationDate)}
+                          </div>
+                          <div className="text-sm text-gray-500">
+                            {request.donationTime}
+                          </div>
+                        </td>
+                        
+                        <td className="px-6 py-4">
+                          <div className="flex items-center">
+                            {getStatusIcon(request.status)}
+                            <span className={`ml-2 px-3 py-1 text-xs font-semibold rounded-full ${getStatusColor(request.status)}`}>
+                              {request.status}
+                            </span>
+                          </div>
+                        </td>
+                        
+                        <td className="px-6 py-4">
+                          <div className="flex space-x-2">
+                            <button
+                              onClick={() => navigate(`/dashboard/request/${request._id}`)}
+                              className="p-2 text-blue-600 hover:bg-blue-50 rounded transition"
+                              title="View Details"
+                            >
+                              <Eye className="h-4 w-4" />
+                            </button>
+                            
+                            {/* REQUIREMENTS: Done and Cancel buttons only when status is 'inprogress' */}
+                            {request.status === 'inprogress' && (
+                              <>
+                                <button
+                                  onClick={() => handleUpdateStatus(request._id, 'done')}
+                                  className="p-2 text-green-600 hover:bg-green-50 rounded transition"
+                                  title="Mark as Done"
+                                >
+                                  <CheckCircle className="h-4 w-4" />
+                                </button>
+                                <button
+                                  onClick={() => handleUpdateStatus(request._id, 'cancelled')}
+                                  className="p-2 text-red-600 hover:bg-red-50 rounded transition"
+                                  title="Cancel Request"
+                                >
+                                  <XCircle className="h-4 w-4" />
+                                </button>
+                              </>
+                            )}
+                            
+                            {/* REQUIREMENTS: Edit button to edit request */}
+                            <button
+                              onClick={() => navigate(`/dashboard/edit-request/${request._id}`)}
+                              className="p-2 text-yellow-600 hover:bg-yellow-50 rounded transition"
+                              title="Edit Request"
+                            >
+                              <Edit className="h-4 w-4" />
+                            </button>
+                            
+                            {/* REQUIREMENTS: Delete button with confirmation */}
+                            <button
+                              onClick={() => handleDeleteRequest(request._id)}
+                              className="p-2 text-red-600 hover:bg-red-50 rounded transition"
+                              title="Delete Request"
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
             </div>
-          </div>
+            
+            {/* REQUIREMENTS: Pagination */}
+            <Pagination />
+          </>
         )}
 
-        {/* Stats */}
+        {/* Stats Cards */}
         <div className="mt-8 grid grid-cols-1 md:grid-cols-4 gap-4">
           <div className="bg-white p-4 rounded-lg shadow">
             <div className="text-2xl font-bold text-gray-900">{requests.length}</div>

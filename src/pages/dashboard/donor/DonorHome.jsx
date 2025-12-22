@@ -1,56 +1,60 @@
-import { useState, useEffect } from 'react';
+// /pages/dashboard/donor/DonorHome.jsx - CORRECTED VERSION
+import React, { useState, useEffect } from 'react';
+import { useAuth } from '../../../context/AuthContext';
 import { Link } from 'react-router';
-import { FaTint, FaHeart, FaBell, FaHistory } from 'react-icons/fa';
-import { donationAPI } from '../../../services/api';  // ✅ Changed from donationApi
-import { userAPI } from '../../../services/api';      // ✅ Also likely needs uppercase
-import { StatsCard } from '../../../components/dashboard/StatsCards';
-import RecentRequests from '../../../components/dashboard/RecentRequests';
+import { Droplets, Calendar, MapPin, Clock, Eye, Edit, Trash2 } from 'lucide-react';
 import toast from 'react-hot-toast';
 
 const DonorHome = () => {
-  const [stats, setStats] = useState({
-    totalDonations: 0,
-    lastDonation: '',
-    upcomingAppointments: 0,
-    points: 0
-  });
+  const { user } = useAuth();
   const [recentRequests, setRecentRequests] = useState([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    fetchDonorData();
+    fetchRecentRequests();
   }, []);
 
-  const fetchDonorData = async () => {
+  const fetchRecentRequests = async () => {
     try {
-      // Fetch donor stats
-      const statsResponse = await userAPI.getUserStats();  // ✅ uppercase
-      if (statsResponse.data.success) {
-        setStats(statsResponse.data.stats);
-      }
-
-      // Fetch recent blood requests
-      const requestsResponse = await donationAPI.getPublicRequests();  // ✅ uppercase
-      if (requestsResponse.data.success) {
-        setRecentRequests(requestsResponse.data.requests.slice(0, 5));
+      const token = localStorage.getItem('token');
+      const response = await fetch('http://localhost:5000/api/requests/my', {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      });
+      
+      if (response.ok) {
+        const data = await response.json();
+        if (data.success) {
+          // Get MAXIMUM 3 recent requests
+          const recent = (data.data || []).slice(0, 3);
+          setRecentRequests(recent);
+        }
       }
     } catch (error) {
-      toast.error('Failed to load dashboard data');
       console.error('Error:', error);
+      toast.error('Failed to load requests');
     } finally {
       setLoading(false);
     }
   };
 
-  const handleDonate = async (requestId) => {
-    try {
-      const response = await donationAPI.donateToRequest(requestId);  // ✅ uppercase
-      if (response.data.success) {
-        toast.success('Thank you for your donation commitment!');
-        fetchDonorData(); // Refresh data
-      }
-    } catch (error) {
-      toast.error('Failed to commit donation');
+  const formatDate = (dateString) => {
+    return new Date(dateString).toLocaleDateString('en-US', {
+      month: 'short',
+      day: 'numeric',
+      year: 'numeric'
+    });
+  };
+
+  const getStatusColor = (status) => {
+    switch (status) {
+      case 'pending': return 'text-yellow-600 bg-yellow-100';
+      case 'inprogress': return 'text-blue-600 bg-blue-100';
+      case 'done': return 'text-green-600 bg-green-100';
+      case 'cancelled': return 'text-red-600 bg-red-100';
+      default: return 'text-gray-600 bg-gray-100';
     }
   };
 
@@ -64,111 +68,128 @@ const DonorHome = () => {
 
   return (
     <div className="space-y-6">
-      {/* Welcome Banner */}
-      <div className="bg-gradient-to-r from-red-50 to-pink-50 rounded-xl p-6">
-        <h1 className="text-3xl font-bold mb-2">Welcome Back, Donor!</h1>
+      {/* Welcome Section - REQUIREMENTS: Welcome message with user's name */}
+      <div className="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-xl p-6">
+        <h1 className="text-3xl font-bold mb-2">Welcome back, {user?.name}!</h1>
         <p className="text-gray-600">
-          Your generosity saves lives. Check out urgent blood requests and your donation history.
+          Thank you for being a blood donor hero! Here are your recent donation requests.
         </p>
       </div>
 
-      {/* Quick Stats */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-        <StatsCard
-          title="Total Donations"
-          value={stats.totalDonations}
-          icon={<FaTint className="text-red-500" />}
-          color="red"
-          description="Lifetime donations"
-        />
-        <StatsCard
-          title="Last Donation"
-          value={stats.lastDonation ? new Date(stats.lastDonation).toLocaleDateString() : 'Never'}
-          icon={<FaHistory className="text-blue-500" />}
-          color="blue"
-          description="Most recent donation"
-        />
-        <StatsCard
-          title="Upcoming Appointments"
-          value={stats.upcomingAppointments}
-          icon={<FaBell className="text-yellow-500" />}
-          color="yellow"
-          description="Scheduled donations"
-        />
-        <StatsCard
-          title="Donor Points"
-          value={stats.points}
-          icon={<FaHeart className="text-pink-500" />}
-          color="pink"
-          description="Reward points earned"
-        />
-      </div>
-
-      {/* Quick Actions */}
-      <div className="bg-white rounded-xl shadow p-6">
-        <h2 className="text-xl font-bold mb-4">Quick Actions</h2>
-        <div className="flex flex-wrap gap-4">
-          <Link to="/donate-now" className="btn btn-primary">
-            <FaTint className="mr-2" />
-            Donate Now
-          </Link>
-          <Link to="/appointments" className="btn btn-outline">
-            Schedule Appointment
-          </Link>
-          <Link to="/history" className="btn btn-outline">
-            View History
-          </Link>
-          <Link to="/rewards" className="btn btn-outline">
-            My Rewards
-          </Link>
-        </div>
-      </div>
-
-      {/* Recent Blood Requests */}
-      <div className="bg-white rounded-xl shadow p-6">
-        <div className="flex justify-between items-center mb-4">
-          <h2 className="text-xl font-bold">Urgent Blood Requests Near You</h2>
-          <Link to="/requests" className="text-red-600 hover:underline">
-            View All →
-          </Link>
-        </div>
-        
-        {recentRequests.length > 0 ? (
-          <RecentRequests 
-            requests={recentRequests} 
-            onDonate={handleDonate}
-            showActions={true}
-          />
-        ) : (
-          <div className="text-center py-8 text-gray-500">
-            <FaTint className="text-4xl mx-auto mb-2 text-gray-300" />
-            <p>No urgent requests at the moment</p>
+      {/* Recent Donation Requests - MAXIMUM 3 - REQUIREMENTS: Recent requests user created */}
+      {recentRequests.length > 0 ? (
+        <div className="bg-white rounded-xl shadow">
+          <div className="p-6 border-b">
+            <div className="flex justify-between items-center">
+              <h2 className="text-xl font-bold">Your Recent Donation Requests</h2>
+              <Link 
+                to="/dashboard/my-requests"
+                className="text-blue-600 hover:text-blue-800 font-medium"
+              >
+                View All Requests →
+              </Link>
+            </div>
           </div>
-        )}
-      </div>
 
-      {/* Health Tips */}
-      <div className="bg-gradient-to-r from-green-50 to-teal-50 rounded-xl p-6">
-        <h3 className="text-lg font-bold mb-3">Donor Health Tips</h3>
-        <ul className="space-y-2">
-          <li className="flex items-start gap-2">
-            <div className="badge badge-success badge-xs mt-1"></div>
-            <span>Stay hydrated before and after donation</span>
-          </li>
-          <li className="flex items-start gap-2">
-            <div className="badge badge-success badge-xs mt-1"></div>
-            <span>Eat iron-rich foods like spinach and red meat</span>
-          </li>
-          <li className="flex items-start gap-2">
-            <div className="badge badge-success badge-xs mt-1"></div>
-            <span>Wait at least 8 weeks between donations</span>
-          </li>
-          <li className="flex items-start gap-2">
-            <div className="badge badge-success badge-xs mt-1"></div>
-            <span>Get adequate rest after donating blood</span>
-          </li>
-        </ul>
-      </div>
+          {/* Table - REQUIREMENTS: Tabular format with specific columns */}
+          <div className="overflow-x-auto">
+            <table className="min-w-full divide-y divide-gray-200">
+              <thead className="bg-gray-50">
+                <tr>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Recipient</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Location</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Date</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Time</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Blood Group</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Status</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Actions</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-gray-200">
+                {recentRequests.map((request) => (
+                  <tr key={request._id} className="hover:bg-gray-50">
+                    <td className="px-6 py-4">
+                      <div className="font-medium">{request.recipientName}</div>
+                      <div className="text-sm text-gray-500">{request.hospitalName}</div>
+                    </td>
+                    
+                    {/* REQUIREMENTS: Location shows district and upazila */}
+                    <td className="px-6 py-4">
+                      <div className="flex items-center">
+                        <MapPin className="h-4 w-4 mr-1 text-gray-400" />
+                        <span>{request.recipientDistrict}, {request.recipientUpazila}</span>
+                      </div>
+                    </td>
+                    
+                    <td className="px-6 py-4">
+                      <div className="flex items-center">
+                        <Calendar className="h-4 w-4 mr-1 text-gray-400" />
+                        {formatDate(request.donationDate)}
+                      </div>
+                    </td>
+                    
+                    <td className="px-6 py-4">
+                      <div className="flex items-center">
+                        <Clock className="h-4 w-4 mr-1 text-gray-400" />
+                        {request.donationTime}
+                      </div>
+                    </td>
+                    
+                    <td className="px-6 py-4">
+                      <span className="font-bold text-red-600 text-lg">
+                        {request.bloodGroup}
+                      </span>
+                    </td>
+                    
+                    <td className="px-6 py-4">
+                      <span className={`px-3 py-1 text-xs font-semibold rounded-full ${getStatusColor(request.status)}`}>
+                        {request.status}
+                      </span>
+                    </td>
+                    
+                    {/* REQUIREMENTS: Edit, Delete, View buttons */}
+                    <td className="px-6 py-4">
+                      <div className="flex space-x-2">
+                        <button
+                          title="Edit"
+                          className="p-1 text-blue-600 hover:bg-blue-50 rounded"
+                        >
+                          <Edit className="h-4 w-4" />
+                        </button>
+                        <button
+                          title="Delete"
+                          className="p-1 text-red-600 hover:bg-red-50 rounded"
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </button>
+                        <button
+                          title="View Details"
+                          className="p-1 text-green-600 hover:bg-green-50 rounded"
+                        >
+                          <Eye className="h-4 w-4" />
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      ) : (
+        // If no requests created yet
+        <div className="bg-white rounded-xl shadow p-8 text-center">
+          <Droplets className="h-16 w-16 text-gray-300 mx-auto mb-4" />
+          <h3 className="text-xl font-bold text-gray-900 mb-2">No donation requests yet</h3>
+          <p className="text-gray-600 mb-6">You haven't created any donation requests yet.</p>
+          <Link
+            to="/dashboard/create-request"
+            className="bg-red-600 text-white px-6 py-3 rounded-lg hover:bg-red-700 font-medium"
+          >
+            Create Your First Request
+          </Link>
+        </div>
+      )}
     </div>
   );
 };

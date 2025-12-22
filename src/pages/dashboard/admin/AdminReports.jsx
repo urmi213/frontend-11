@@ -1,4 +1,4 @@
-// components/dashboard/AdminReports.jsx - SIMPLE VERSION
+// components/dashboard/AdminReports.jsx - SIMPLE WORKING EXPORT
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../../../context/AuthContext';
 import { BarChart3, Download } from 'lucide-react';
@@ -37,43 +37,38 @@ const AdminReports = () => {
     }
   };
 
-  // ✅ SIMPLE EXPORT FUNCTION - CSV format
+  // ✅ WORKING EXPORT FUNCTION
   const handleExportReport = () => {
-    try {
-      // Create CSV content
-      const csvData = [
-        ['Metric', 'Value'],
-        ['Total Users', reports.totalUsers || 0],
-        ['Total Requests', reports.totalRequests || 0],
-        ['Pending Requests', reports.pendingRequests || 0],
-        ['In Progress', reports.inProgressRequests || 0],
-        ['Completed', reports.completedRequests || 0],
-        ['Cancelled', reports.cancelledRequests || 0],
-        ['Total Donors', reports.totalDonors || 0],
-        ['Total Admins', reports.totalAdmins || 0]
-      ];
+    // Create CSV content
+    const csvData = [
+      ['Metric', 'Value'],
+      ['Total Users', reports.totalUsers || 0],
+      ['Total Requests', reports.totalRequests || 0],
+      ['Pending Requests', reports.pendingRequests || 0],
+      ['Total Donors', reports.totalDonors || 0],
+      ['Total Admins', reports.totalAdmins || 0],
+      ['In Progress', reports.inProgressRequests || 0],
+      ['Completed', reports.completedRequests || 0],
+      ['Cancelled', reports.cancelledRequests || 0]
+    ];
 
-      // Convert to CSV string
-      const csvString = csvData.map(row => row.join(',')).join('\n');
-      
-      // Create download link
-      const blob = new Blob([csvString], { type: 'text/csv' });
-      const url = URL.createObjectURL(blob);
-      const link = document.createElement('a');
-      link.href = url;
-      link.download = `blood-donation-report-${new Date().toISOString().split('T')[0]}.csv`;
-      
-      // Trigger download
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-      URL.revokeObjectURL(url);
-      
-      toast.success('Report exported successfully!');
-    } catch (error) {
-      console.error('Export error:', error);
-      toast.error('Failed to export report');
-    }
+    // Convert to CSV string
+    const csvString = csvData.map(row => row.join(',')).join('\n');
+    
+    // Create download link
+    const blob = new Blob([csvString], { type: 'text/csv' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `blood-donation-report-${new Date().toISOString().split('T')[0]}.csv`;
+    
+    // Trigger download
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+    
+    toast.success('Report exported successfully!');
   };
 
   if (loading) {
@@ -115,42 +110,7 @@ const AdminReports = () => {
           </p>
         </div>
 
-        {/* Stats Display */}
-        <div className="bg-white rounded-xl shadow p-6">
-          <h2 className="text-xl font-bold text-gray-900 mb-4">System Statistics</h2>
-          
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            <div className="border p-4 rounded-lg">
-              <p className="text-gray-500">Total Users</p>
-              <p className="text-2xl font-bold">{reports.totalUsers || 0}</p>
-            </div>
-            
-            <div className="border p-4 rounded-lg">
-              <p className="text-gray-500">Total Requests</p>
-              <p className="text-2xl font-bold">{reports.totalRequests || 0}</p>
-            </div>
-            
-            <div className="border p-4 rounded-lg">
-              <p className="text-gray-500">Pending Requests</p>
-              <p className="text-2xl font-bold">{reports.pendingRequests || 0}</p>
-            </div>
-            
-            <div className="border p-4 rounded-lg">
-              <p className="text-gray-500">In Progress</p>
-              <p className="text-2xl font-bold">{reports.inProgressRequests || 0}</p>
-            </div>
-            
-            <div className="border p-4 rounded-lg">
-              <p className="text-gray-500">Completed</p>
-              <p className="text-2xl font-bold">{reports.completedRequests || 0}</p>
-            </div>
-            
-            <div className="border p-4 rounded-lg">
-              <p className="text-gray-500">Cancelled</p>
-              <p className="text-2xl font-bold">{reports.cancelledRequests || 0}</p>
-            </div>
-          </div>
-        </div>
+        {/* ... rest of your existing stats display ... */}
       </div>
     </div>
   );
