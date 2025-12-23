@@ -34,7 +34,7 @@ const AdminActivities = () => {
       
       // Try to get activities from API
       try {
-        const response = await fetch('http://localhost:5000/api/admin/recent-activities', {
+        const response = await fetch('http://https://myapp-cq1llcwyg-urmis-projects-37af7542.vercel.app/api/admin/recent-activities', {
           headers: {
             'Authorization': `Bearer ${token}`,
             'Content-Type': 'application/json'

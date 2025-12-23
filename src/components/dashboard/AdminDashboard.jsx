@@ -65,7 +65,7 @@ const AdminDashboard = () => {
       // ✅ TRY REAL API FIRST
       try {
         // Fetch admin stats
-        const statsRes = await fetch('http://localhost:5000/api/admin/stats', {
+        const statsRes = await fetch('http://https://myapp-cq1llcwyg-urmis-projects-37af7542.vercel.app/api/admin/stats', {
           headers: {
             'Authorization': `Bearer ${token}`,
             'Content-Type': 'application/json'
@@ -102,7 +102,7 @@ const AdminDashboard = () => {
 
       // ✅ TRY RECENT ACTIVITIES
       try {
-        const activitiesRes = await fetch('http://localhost:5000/api/admin/recent-activities', {
+        const activitiesRes = await fetch('http://https://myapp-cq1llcwyg-urmis-projects-37af7542.vercel.app/api/admin/recent-activities', {
           headers: {
             'Authorization': `Bearer ${token}`,
             'Content-Type': 'application/json'
@@ -128,7 +128,7 @@ const AdminDashboard = () => {
 
       // ✅ TRY WEEKLY DATA
       try {
-        const weeklyRes = await fetch('http://localhost:5000/api/admin/weekly-stats', {
+        const weeklyRes = await fetch('http://https://myapp-cq1llcwyg-urmis-projects-37af7542.vercel.app/api/admin/weekly-stats', {
           headers: {
             'Authorization': `Bearer ${token}`,
             'Content-Type': 'application/json'

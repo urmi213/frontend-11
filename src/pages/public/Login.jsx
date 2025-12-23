@@ -5,12 +5,13 @@ import toast from 'react-hot-toast';
 
 const Login = () => {
   const [formData, setFormData] = useState({
-    email: 'admin@gmail.com', // Default admin email
-    password: 'admin123'      // Default admin password
+    email: 'admin@gmail.com',
+    password: 'admin123'
   });
   const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState(null); // ✅ Local error state
   
-  const { login, error, setError } = useAuth();
+  const { login } = useAuth(); // ✅ Remove setError from here
   const navigate = useNavigate();
 
   const handleChange = (e) => {
@@ -22,6 +23,7 @@ const Login = () => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    setError(null); // ✅ Now using local state
     
     if (!formData.email.trim()) {
       toast.error('Please enter email');
@@ -34,7 +36,6 @@ const Login = () => {
     }
 
     setIsLoading(true);
-    setError(null);
 
     try {
       console.log('🔄 Logging in with:', formData.email);
@@ -47,19 +48,19 @@ const Login = () => {
         
         // Redirect based on role
         setTimeout(() => {
-          if (result.user.role === 'admin') {
-            navigate('/admin/dashboard');
-          } else {
-            navigate('/dashboard');
-          }
+          
+            navigate('/');
+          
         }, 500);
         
       } else {
+        setError(result.message || 'Login failed'); // ✅ Local state use
         toast.error(result.message || 'Login failed');
       }
       
     } catch (error) {
       console.error('Login error:', error);
+      setError('An error occurred. Please try again.'); // ✅ Local state use
       toast.error('An error occurred. Please try again.');
     } finally {
       setIsLoading(false);

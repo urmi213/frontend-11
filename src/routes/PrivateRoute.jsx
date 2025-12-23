@@ -29,7 +29,7 @@ const ProtectedRoute = ({ children, adminOnly = false }) => {
           
           // Optional: Verify token with backend (if API is available)
           // try {
-          //   const response = await fetch('http://localhost:5000/api/auth/verify', {
+          //   const response = await fetch('http://https://myapp-cq1llcwyg-urmis-projects-37af7542.vercel.app/api/auth/verify', {
           //     headers: { 'Authorization': `Bearer ${token}` }
           //   });
           //   
@@ -54,7 +54,7 @@ const ProtectedRoute = ({ children, adminOnly = false }) => {
       } else if (token && !storedUser) {
         // Token exists but no user data - try to fetch user
         try {
-          const response = await fetch('http://localhost:5000/api/auth/me', {
+          const response = await fetch('http://https://myapp-cq1llcwyg-urmis-projects-37af7542.vercel.app/api/auth/me', {
             headers: { 'Authorization': `Bearer ${token}` }
           });
           

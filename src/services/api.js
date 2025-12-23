@@ -1,8 +1,9 @@
+// services/api.js
 import axios from 'axios';
 
-// Vite environment variable
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
+const API_URL = import.meta.env.VITE_API_URL || 'http://https://myapp-cq1llcwyg-urmis-projects-37af7542.vercel.app/api';
 
+// Create axios instance
 const API = axios.create({
   baseURL: API_URL,
   headers: {
@@ -10,287 +11,256 @@ const API = axios.create({
   },
 });
 
-// Request interceptor to add token
-API.interceptors.request.use(
-  (config) => {
-    const token = localStorage.getItem('token');
-    if (token) {
-      config.headers.Authorization = `Bearer ${token}`;
-    }
-    return config;
+// ✅ VERY IMPORTANT: FIX THE REQUEST INTERCEPTOR
+API.interceptors.request.use((config) => {
+  // Check for token in localStorage
+  const token = localStorage.getItem('token') || 
+                localStorage.getItem('accessToken');
+  
+  console.log('🔑 Interceptor - Token found:', !!token);
+  console.log('📤 Request to:', config.method?.toUpperCase(), config.url);
+  
+  // If token exists, add to headers
+  if (token) {
+    config.headers.Authorization = `Bearer ${token}`;
+    console.log('✅ Token added to Authorization header');
+  } else {
+    console.warn('⚠️ No token found! Request will be unauthorized');
+  }
+  
+  // Log the headers for debugging
+  console.log('📋 Request headers:', config.headers);
+  
+  return config;
+}, (error) => {
+  console.error('❌ Request interceptor error:', error);
+  return Promise.reject(error);
+});
+
+// ✅ ALSO FIX RESPONSE INTERCEPTOR
+API.interceptors.response.use(
+  (response) => {
+    console.log('✅ Response status:', response.status, response.config.url);
+    return response;
   },
   (error) => {
-    return Promise.reject(error);
-  }
-);
-
-// Response interceptor for token refresh
-API.interceptors.response.use(
-  (response) => response,
-  async (error) => {
-    const originalRequest = error.config;
+    console.error('❌ API Error Details:');
+    console.error('URL:', error.config?.url);
+    console.error('Status:', error.response?.status);
+    console.error('Message:', error.response?.data?.message || error.message);
     
-    // Handle 401 errors (unauthorized)
-    if (error.response?.status === 401 && !originalRequest._retry) {
-      originalRequest._retry = true;
+    // Handle 401 Unauthorized
+    if (error.response?.status === 401) {
+      console.log('🚨 401 Unauthorized - Clearing tokens');
       
-      try {
-        const refreshToken = localStorage.getItem('refreshToken');
-        if (refreshToken) {
-          const response = await axios.post(
-            `${API_URL}/auth/refresh`,
-            { refreshToken }
-          );
-          
-          if (response.data.success) {
-            localStorage.setItem('token', response.data.accessToken);
-            originalRequest.headers.Authorization = `Bearer ${response.data.accessToken}`;
-            return API(originalRequest);
-          }
-        }
-      } catch (refreshError) {
-        console.error('Token refresh failed:', refreshError);
-      }
-      
-      // Clear storage and redirect to login
+      // Clear all tokens
       localStorage.removeItem('token');
-      localStorage.removeItem('refreshToken');
+      localStorage.removeItem('accessToken');
       localStorage.removeItem('user');
-      window.location.href = '/login';
+      
+      // Show message
+      alert('Session expired. Please login again.');
+      
+      // Redirect to login page
+      if (window.location.pathname !== '/login') {
+        window.location.href = '/login';
+      }
     }
     
-    // Handle other errors
     return Promise.reject(error);
   }
 );
 
-// ==================== AUTHENTICATION API ====================
-export const authAPI = {
-  // Login & Registration
-  login: (credentials) => API.post('/auth/login', credentials).then(res => res.data),
-  register: (userData) => API.post('/auth/register', userData).then(res => res.data),
-  logout: () => API.post('/auth/logout').then(res => res.data),
-  
-  // User Management
-  getMe: () => API.get('/auth/me').then(res => res.data),
-  updateProfile: (userData) => API.put('/auth/profile', userData).then(res => res.data),
-  
-  // Token Management
-  refreshToken: (refreshToken) => API.post('/auth/refresh', { refreshToken }).then(res => res.data),
-  
-  // Password Management
-  forgotPassword: (email) => API.post('/auth/forgot-password', { email }).then(res => res.data),
-  resetPassword: (token, newPassword) => API.post('/auth/reset-password', { token, newPassword }).then(res => res.data),
+// ==================== API FUNCTIONS ====================
+
+// 🔑 AUTH
+export const login = async (credentials) => {
+  try {
+    console.log('🔐 Attempting login...');
+    const response = await API.post('/auth/login', credentials);
+    console.log('✅ Login response:', response.data);
+    
+    // Save token properly
+    const token = response.data.accessToken || response.data.token;
+    if (token) {
+      localStorage.setItem('token', token);
+      localStorage.setItem('accessToken', token);
+      console.log('💾 Token saved to localStorage');
+    }
+    
+    // Save user info
+    if (response.data.user) {
+      localStorage.setItem('user', JSON.stringify(response.data.user));
+    }
+    
+    return response.data;
+  } catch (error) {
+    console.error('❌ Login failed:', error);
+    throw error;
+  }
 };
 
-// ==================== USER API ====================
-export const userAPI = {
-  // Search & List
-  searchDonors: (params) => API.get('/users/search', { params }).then(res => res.data),
-  getAllUsers: (params) => API.get('/users', { params }).then(res => res.data),
-  getUser: (id) => API.get(`/users/${id}`).then(res => res.data),
-  
-  // CRUD Operations
-  createUser: (userData) => API.post('/users', userData).then(res => res.data),
-  updateUser: (id, data) => API.put(`/users/${id}`, data).then(res => res.data),
-  deleteUser: (id) => API.delete(`/users/${id}`).then(res => res.data),
-  
-  // Status & Role Management
-  updateUserStatus: (id, status) => API.patch(`/users/${id}/status`, { status }).then(res => res.data),
-  updateUserRole: (id, role) => API.patch(`/users/${id}/role`, { role }).then(res => res.data),
-  blockUser: (id) => API.patch(`/users/${id}/block`).then(res => res.data),
-  unblockUser: (id) => API.patch(`/users/${id}/unblock`).then(res => res.data),
-  
-  // Stats
-  getUserStats: () => API.get('/users/stats').then(res => res.data),
-  getActiveDonors: () => API.get('/users/active-donors').then(res => res.data),
-  
-  // Profile
-  uploadAvatar: (formData) => API.post('/users/upload-avatar', formData, {
-    headers: {
-      'Content-Type': 'multipart/form-data',
-    },
-  }).then(res => res.data),
+export const register = (data) => API.post('/auth/register', data);
+export const getMe = () => API.get('/auth/me').then(res => res.data);
+
+// 📊 DASHBOARD
+export const getDashboardData = () => {
+  console.log('📊 Fetching dashboard data...');
+  return API.get('/dashboard').then(res => {
+    console.log('✅ Dashboard data received');
+    return res.data;
+  });
 };
 
-// ==================== DONATION REQUESTS API ====================
-export const donationAPI = {
-  // Dashboard & Recent
-  getDashboardData: () => API.get('/dashboard').then(res => res.data),
-  getRecentRequests: (limit = 3) => API.get(`/donations/recent?limit=${limit}`).then(res => res.data),
-  getMyRecentRequests: (limit = 3) => API.get(`/donations/my-recent?limit=${limit}`).then(res => res.data),
-  getMyRequests: (params) => API.get('/donations/my-requests', { params }).then(res => res.data),
-  
-  // CRUD Operations
-  createRequest: (data) => API.post('/donations', data).then(res => res.data),
-  getAllRequests: (params) => API.get('/donations', { params }).then(res => res.data),
-  getRequest: (id) => API.get(`/donations/${id}`).then(res => res.data),
-  updateRequest: (id, data) => API.put(`/donations/${id}`, data).then(res => res.data),
-  deleteRequest: (id) => API.delete(`/donations/${id}`).then(res => res.data),
-  
-  // Status Management
-  updateStatus: (id, status) => API.patch(`/donations/${id}/status`, { status }).then(res => res.data),
-  assignDonor: (id, donorId) => API.post(`/donations/${id}/assign-donor`, { donorId }).then(res => res.data),
-  
-  // Public Requests
-  getPublicRequests: () => API.get('/donations/public').then(res => res.data),
-  getRequestDetails: (id) => API.get(`/donations/${id}/details`).then(res => res.data),
-  
-  // Donor Actions
-  respondToRequest: (id) => API.post(`/donations/${id}/respond`).then(res => res.data),
-  
-  // Stats & Analytics
-  getDonationStats: () => API.get('/donations/stats').then(res => res.data),
-  getAdminStats: () => API.get('/admin/donation-stats').then(res => res.data),
+// 📋 REQUESTS
+export const getAllRequests = () => {
+  console.log('📋 Fetching all requests...');
+  return API.get('/dashboard/requests').then(res => {
+    console.log('✅ All requests received:', res.data?.length || 0, 'requests');
+    return res.data;
+  });
 };
 
-// ==================== ADMIN API ====================
-export const adminAPI = {
-  // Dashboard & Stats
-  getAdminDashboard: () => API.get('/admin/dashboard').then(res => res.data),
-  getAdminStats: () => API.get('/admin/stats').then(res => res.data),
-  
-  // User Management (Admin only)
-  getAllUsersAdmin: (params) => API.get('/admin/users', { params }).then(res => res.data),
-  updateUserAdmin: (id, data) => API.put(`/admin/users/${id}`, data).then(res => res.data),
-  deleteUserAdmin: (id) => API.delete(`/admin/users/${id}`).then(res => res.data),
-  
-  // Donation Request Management (Admin only)
-  getAllRequestsAdmin: (params) => API.get('/admin/requests', { params }).then(res => res.data),
-  getRequestAdmin: (id) => API.get(`/admin/requests/${id}`).then(res => res.data),
-  updateRequestAdmin: (id, data) => API.put(`/admin/requests/${id}`, data).then(res => res.data),
-  deleteRequestAdmin: (id) => API.delete(`/admin/requests/${id}`).then(res => res.data),
-  updateRequestStatusAdmin: (id, status) => API.patch(`/admin/requests/${id}/status`, { status }).then(res => res.data),
-  
-  // System Management
-  getSystemStats: () => API.get('/admin/system-stats').then(res => res.data),
-  getRecentActivities: () => API.get('/admin/recent-activities').then(res => res.data),
+export const getMyRequests = () => API.get('/dashboard/my-requests').then(res => res.data);
+
+// ✅ FIXED: Correct endpoint for creating request
+export const createRequest = (data) => {
+  console.log('➕ Creating new request...', data);
+  return API.post('/dashboard/requests', data).then(res => {
+    console.log('✅ Request created successfully');
+    return res.data;
+  });
 };
 
-// ==================== PUBLIC DATA API ====================
-export const publicAPI = {
-  // Location Data (from Bangladesh GeoCode)
-  getDivisions: () => API.get('/data/divisions').then(res => res.data),
-  getDistricts: () => API.get('/data/districts').then(res => res.data),
-  getUpazilas: (district) => API.get(`/data/upazilas/${district}`).then(res => res.data),
-  getUnions: (upazila) => API.get(`/data/unions/${upazila}`).then(res => res.data),
-  
-  // Blood Groups
-  getBloodGroups: () => API.get('/data/blood-groups').then(res => res.data),
-  
-  // Hospitals & Centers
-  getHospitals: () => API.get('/data/hospitals').then(res => res.data),
-  getDonationCenters: () => API.get('/data/donation-centers').then(res => res.data),
-  
-  // Static Data
-  getFaqs: () => API.get('/data/faqs').then(res => res.data),
-  getContactInfo: () => API.get('/data/contact').then(res => res.data),
+export const updateRequest = (id, data) => API.put(`/dashboard/requests/${id}`, data).then(res => res.data);
+export const deleteRequest = (id) => API.delete(`/dashboard/requests/${id}`).then(res => res.data);
+export const updateRequestStatus = (id, status) => 
+  API.patch(`/dashboard/requests/${id}/status`, { status }).then(res => res.data);
+
+// 📋 GET SINGLE REQUEST DETAILS
+export const getRequestDetails = async (id) => {
+  try {
+    console.log(`📋 Fetching request details for ID: ${id}`);
+    const response = await API.get(`/dashboard/requests/${id}`);
+    console.log('✅ Request details received:', response.data);
+    return response.data;
+  } catch (error) {
+    console.error(`❌ Error fetching request ${id}:`, error);
+    throw error;
+  }
 };
 
-// ==================== FUNDING API ====================
-export const fundingAPI = {
-  // Payment Processing
-  createPaymentIntent: (amount) => API.post('/funding/create-intent', { amount }).then(res => res.data),
-  confirmPayment: (paymentData) => API.post('/funding/confirm', paymentData).then(res => res.data),
-  
-  // Funding Management
-  getMyFundings: () => API.get('/funding/my').then(res => res.data),
-  getAllFundings: (params) => API.get('/funding', { params }).then(res => res.data),
-  getFunding: (id) => API.get(`/funding/${id}`).then(res => res.data),
-  createFunding: (data) => API.post('/funding', data).then(res => res.data),
-  
-  // Stats
-  getFundingStats: () => API.get('/funding/stats').then(res => res.data),
-  getTotalFunding: () => API.get('/funding/total').then(res => res.data),
-  
-  // Admin Functions
-  getFundingsAdmin: (params) => API.get('/admin/fundings', { params }).then(res => res.data),
-  updateFundingAdmin: (id, data) => API.put(`/admin/fundings/${id}`, data).then(res => res.data),
-  deleteFundingAdmin: (id) => API.delete(`/admin/fundings/${id}`).then(res => res.data),
+// 👑 ADMIN
+export const getAllUsers = () => API.get('/admin/users').then(res => res.data);
+export const updateUserStatus = (id, data) => 
+  API.patch(`/admin/users/${id}/status`, data).then(res => res.data);
+export const updateUserRole = (id, data) => 
+  API.patch(`/admin/users/${id}/role`, data).then(res => res.data);
+export const getAdminStats = () => API.get('/admin/stats').then(res => res.data);
+
+export const getAllRequestsAdmin = () => {
+  console.log('👑 Fetching all requests (admin)...');
+  return API.get('/admin/requests').then(res => {
+    console.log('✅ All requests received:', res.data?.length || 0, 'requests');
+    return res.data;
+  });
 };
 
-// ==================== DASHBOARD API ====================
-export const dashboardAPI = {
-  // Role-based dashboard data
-  getDashboardData: () => API.get('/dashboard').then(res => res.data),
-  
-  // Admin Dashboard
-  getAdminDashboard: () => API.get('/dashboard/admin').then(res => res.data),
-  
-  // Donor Dashboard
-  getDonorDashboard: () => API.get('/dashboard/donor').then(res => res.data),
-  
-  // Volunteer Dashboard
-  getVolunteerDashboard: () => API.get('/dashboard/volunteer').then(res => res.data),
-  
-  // Common Dashboard Functions
-  getDashboardStats: () => API.get('/dashboard/stats').then(res => res.data),
-  getRecentActivities: () => API.get('/dashboard/activities').then(res => res.data),
-  getNotifications: () => API.get('/dashboard/notifications').then(res => res.data),
+export const updateRequestAdmin = async (id, data) => {
+  try {
+    console.log(`👑 Updating request ${id} (admin)...`, data);
+    const response = await API.put(`/admin/requests/${id}`, data);
+    console.log('✅ Request updated successfully');
+    return response.data;
+  } catch (error) {
+    console.error(`❌ Error updating request ${id}:`, error);
+    throw error;
+  }
 };
 
-// ==================== INDIVIDUAL EXPORTS (for direct imports) ====================
+// 🤝 VOLUNTEER API FUNCTIONS
+export const getVolunteerRequests = async () => {
+  try {
+    console.log('🤝 Fetching all requests for volunteer...');
+    const response = await API.get('/volunteer/requests');
+    console.log('✅ Volunteer requests received:', response.data?.length || 0, 'requests');
+    return response.data;
+  } catch (error) {
+    console.error('❌ Error fetching volunteer requests:', error);
+    
+    // If volunteer endpoint doesn't exist, fallback to dashboard/requests
+    try {
+      console.log('⚠️ Volunteer endpoint not found, trying dashboard endpoint...');
+      const fallbackResponse = await API.get('/dashboard/requests');
+      console.log('✅ Fallback successful:', fallbackResponse.data?.length || 0, 'requests');
+      return fallbackResponse.data;
+    } catch (fallbackError) {
+      console.error('❌ Fallback also failed:', fallbackError);
+      throw error;
+    }
+  }
+};
 
-// ✅ Auth Functions
-export const login = (credentials) => authAPI.login(credentials);
-export const register = (userData) => authAPI.register(userData);
-export const getMe = () => authAPI.getMe();
-export const updateProfile = (userData) => authAPI.updateProfile(userData);
+export const getVolunteerStats = () => {
+  console.log('📊 Fetching volunteer stats...');
+  return API.get('/volunteer/stats').then(res => {
+    console.log('✅ Volunteer stats received');
+    return res.data;
+  });
+};
 
-// ✅ User Functions
-export const searchDonors = (params) => userAPI.searchDonors(params);
-export const getAllUsers = (params) => userAPI.getAllUsers(params);
-export const getUser = (id) => userAPI.getUser(id);
-export const updateUser = (id, data) => userAPI.updateUser(id, data);
-export const updateUserStatus = (id, status) => userAPI.updateUserStatus(id, status);
-export const updateUserRole = (id, role) => userAPI.updateUserRole(id, role);
+// 💰 FUNDING API FUNCTIONS
+export const getFundingStats = async () => {
+  try {
+    console.log('💰 Fetching funding stats...');
+    const response = await API.get('/funding/stats');
+    console.log('✅ Funding stats received:', response.data);
+    return response.data;
+  } catch (error) {
+    console.warn('⚠️ /funding/stats endpoint not found, using mock data');
+    
+    // Return mock data if endpoint doesn't exist
+    return {
+      success: true,
+      data: {
+        totalDonations: 12500,
+        totalDonors: 234,
+        monthlyGoal: 10000,
+        currentMonth: 8500,
+        fundingHistory: [
+          { month: 'Jan', amount: 8500 },
+          { month: 'Feb', amount: 9200 },
+          { month: 'Mar', amount: 7800 },
+          { month: 'Apr', amount: 10500 },
+          { month: 'May', amount: 12500 }
+        ]
+      }
+    };
+  }
+};
 
-// ✅ Donation Request Functions
-export const getDashboardData = () => dashboardAPI.getDashboardData();
-export const getRecentRequests = (limit = 3) => donationAPI.getRecentRequests(limit);
-export const getMyRecentRequests = (limit = 3) => donationAPI.getMyRecentRequests(limit);
-export const getMyRequests = (params) => donationAPI.getMyRequests(params);
-export const createRequest = (data) => donationAPI.createRequest(data);
-export const getAllRequests = (params) => donationAPI.getAllRequests(params);
-export const getRequest = (id) => donationAPI.getRequest(id);
-export const updateRequest = (id, data) => donationAPI.updateRequest(id, data);
-export const deleteRequest = (id) => donationAPI.deleteRequest(id);
-export const updateRequestStatus = (id, status) => donationAPI.updateStatus(id, status);
-export const getRequestDetails = (id) => donationAPI.getRequestDetails(id);
-export const getPublicRequests = () => donationAPI.getPublicRequests();
+export const getDonations = async () => {
+  try {
+    const response = await API.get('/funding/donations');
+    return response.data;
+  } catch (error) {
+    console.warn('⚠️ /funding/donations endpoint not found');
+    return { success: true, data: [] };
+  }
+};
 
-// ✅ Admin Functions
-export const getAdminDashboard = () => adminAPI.getAdminDashboard();
-export const getAdminStats = () => adminAPI.getAdminStats();
-export const getAllRequestsAdmin = (params) => adminAPI.getAllRequestsAdmin(params);
-export const getRequestAdmin = (id) => adminAPI.getRequestAdmin(id);
-export const updateRequestAdmin = (id, data) => adminAPI.updateRequestAdmin(id, data);
-export const deleteRequestAdmin = (id) => adminAPI.deleteRequestAdmin(id);
-export const updateRequestStatusAdmin = (id, status) => adminAPI.updateRequestStatusAdmin(id, status);
-export const getAllUsersAdmin = (params) => adminAPI.getAllUsersAdmin(params);
-export const updateUserAdmin = (id, data) => adminAPI.updateUserAdmin(id, data);
-export const deleteUserAdmin = (id) => adminAPI.deleteUserAdmin(id);
+export const createDonation = async (donationData) => {
+  try {
+    const response = await API.post('/funding/donations', donationData);
+    return response.data;
+  } catch (error) {
+    console.error('❌ Error creating donation:', error);
+    throw error;
+  }
+};
 
-// ✅ Public Data Functions
-export const getDistricts = () => publicAPI.getDistricts();
-export const getUpazilas = (district) => publicAPI.getUpazilas(district);
-export const getBloodGroups = () => publicAPI.getBloodGroups();
+// 🌍 PUBLIC ENDPOINTS
+export const getDistricts = () => API.get('/districts').then(res => res.data);
+export const getPublicRequests = () => API.get('/requests/public').then(res => res.data);
 
-// ✅ Funding Functions
-export const createPaymentIntent = (amount) => fundingAPI.createPaymentIntent(amount);
-export const confirmPayment = (paymentData) => fundingAPI.confirmPayment(paymentData);
-export const getMyFundings = () => fundingAPI.getMyFundings();
-export const getAllFundings = (params) => fundingAPI.getAllFundings(params);
-export const getFundingStats = () => fundingAPI.getFundingStats();
-
-// ==================== ALIAS EXPORTS (for backward compatibility) ====================
-export const authApi = authAPI;
-export const userApi = userAPI;
-export const donationApi = donationAPI;
-export const adminApi = adminAPI;
-export const publicApi = publicAPI;
-export const fundingApi = fundingAPI;
-export const dashboardApi = dashboardAPI;
-
-// ==================== DEFAULT EXPORT ====================
 export default API;

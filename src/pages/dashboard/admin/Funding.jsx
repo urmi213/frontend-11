@@ -2,6 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import { DollarSign, TrendingUp, Users, Target, Calendar, Download, BarChart3 } from 'lucide-react';
 import toast from 'react-hot-toast';
+import { getFundingStats } from '../../../services/api';
 
 const Funding = () => {
   const [stats, setStats] = useState({
@@ -19,23 +20,19 @@ const Funding = () => {
 
   const fetchStats = async () => {
     try {
-      // Since fundingApi.getStats doesn't exist, we'll use a mock API or fetch from backend
-      const token = localStorage.getItem('token');
-      const response = await fetch('http://localhost:5000/api/funding/stats', {
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        }
-      });
+      setLoading(true);
+      const result = await getFundingStats();
       
-      if (response.ok) {
-        const data = await response.json();
-        if (data.success) {
-          setStats(data.data);
-        }
+      // Handle both response structures
+      if (result.success && result.data) {
+        // API returns { success: true, data: {...} }
+        setStats(result.data);
+      } else if (result.totalDonations !== undefined) {
+        // Direct data structure
+        setStats(result);
       } else {
-        // If endpoint doesn't exist, use mock data
-        console.log('Funding endpoint not available, using mock data');
+        // Fallback mock data
+        console.log('Using mock funding data');
         setStats({
           totalDonations: 12500,
           totalDonors: 234,
@@ -51,8 +48,9 @@ const Funding = () => {
         });
       }
     } catch (error) {
-      console.error('Failed to load stats:', error);
+      console.error('Failed to load funding stats:', error);
       toast.error('Failed to load funding statistics');
+      
       // Use mock data on error
       setStats({
         totalDonations: 12500,
